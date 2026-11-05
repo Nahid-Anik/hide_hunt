@@ -14,13 +14,43 @@ class ArenaRenderer {
   final _facing = <int, double>{};
   final _moving = <int, bool>{};
   final _lastMoved = <int, double>{};
+  final _bursts = <_InteractionBurst>[];
+  final _previousVanish = <int, double>{};
+  final _wasHidden = <int, bool>{};
+  double _previousSense = 0, _senseRemaining = 0;
+  Offset _senseOrigin = Offset.zero;
   Picture? _ground;
   void advance(double dt) {
     if (!dt.isFinite || dt <= 0) return;
     dt = min(dt, .1);
     animationTime += dt;
+    for (final burst in _bursts) {
+      burst.remaining -= dt;
+    }
+    _bursts.removeWhere((burst) => burst.remaining <= 0);
+    _senseRemaining = max(0, _senseRemaining - dt);
+    final hunter = match.players[0];
+    if (hunter.skill > _previousSense + .1) {
+      _senseRemaining = 1;
+      _senseOrigin = hunter.at;
+    }
+    _previousSense = hunter.skill;
     for (var i = 0; i < match.players.length; i++) {
       final at = match.players[i].at;
+      final player = match.players[i];
+      final entering = player.hidingIn != null && !(_wasHidden[i] ?? false);
+      final vanishing = player.vanish > (_previousVanish[i] ?? 0) + .1;
+      if ((entering || vanishing) && !player.caught && match.visible(i)) {
+        _bursts.add(
+          _InteractionBurst(
+            i,
+            at,
+            vanishing ? const Color(0xffb4f4f0) : const Color(0xffffe9a6),
+          ),
+        );
+      }
+      _wasHidden[i] = player.hidingIn != null;
+      _previousVanish[i] = player.vanish;
       final delta = at - (_positions[i] ?? at);
       if (delta.distance > .05) {
         _lastMoved[i] = animationTime;
@@ -414,6 +444,48 @@ class ArenaRenderer {
         match.captureOrigin - const Offset(0, 85),
       );
     }
+    if (!preview) {
+      if (_senseRemaining > 0 && !match.hiding) {
+        final radius = 210 * (1 - _senseRemaining);
+        c.drawCircle(
+          _senseOrigin,
+          radius,
+          Paint()
+            ..color = const Color(
+              0xff9ae4df,
+            ).withValues(alpha: _senseRemaining * .75)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 3,
+        );
+        c.drawCircle(
+          _senseOrigin,
+          radius,
+          Paint()
+            ..color = const Color(
+              0xff9ae4df,
+            ).withValues(alpha: _senseRemaining * .035),
+        );
+      }
+      final target = match.hidingPlace(match.human);
+      if (target != null) {
+        final targetRect = Rect.fromCircle(
+          center: target.at,
+          radius: 31 + sin(animationTime * 4) * 2,
+        );
+        for (var n = 0; n < 4; n++) {
+          c.drawArc(
+            targetRect,
+            animationTime * .4 + n * pi / 2,
+            pi / 3,
+            false,
+            Paint()
+              ..color = const Color(0xffffe8a6)
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 3,
+          );
+        }
+      }
+    }
     final objects = <({double y, int index, bool pawn})>[
       for (var i = 0; i < match.props.length; i++)
         (y: match.props[i].at.dy + 18, index: i, pawn: false),
@@ -510,6 +582,31 @@ class ArenaRenderer {
         }
       }
     }
+    if (!preview) {
+      for (final burst in _bursts) {
+        if (!match.visible(burst.owner) || match.players[burst.owner].caught)
+          continue;
+        final progress = 1 - burst.remaining / .55;
+        c.drawCircle(
+          burst.at,
+          18 + progress * 25,
+          Paint()
+            ..color = burst.color.withValues(alpha: (1 - progress) * .7)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2,
+        );
+        for (var n = 0; n < 6; n++) {
+          final angle = n * pi / 3;
+          final at =
+              burst.at + Offset(cos(angle), sin(angle)) * (15 + progress * 28);
+          c.drawCircle(
+            at,
+            2 * (1 - progress),
+            Paint()..color = burst.color.withValues(alpha: 1 - progress),
+          );
+        }
+      }
+    }
     atmosphere(c, preview: preview);
     if (!preview && match.hiding && match.human == 0) {
       box(c, const Rect.fromLTWH(0, 0, 960, 720), const Color(0xff203b34));
@@ -579,4 +676,12 @@ class ArenaRenderer {
     }
     c.restore();
   }
+}
+
+class _InteractionBurst {
+  final int owner;
+  final Offset at;
+  final Color color;
+  double remaining = .55;
+  _InteractionBurst(this.owner, this.at, this.color);
 }

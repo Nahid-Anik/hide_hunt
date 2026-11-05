@@ -43,4 +43,39 @@ void main() {
       expect(await pixels(renderer), isNot(orderedEquals(empty)));
     },
   );
+  test(
+    'interaction bursts do not disclose invisible players after animation updates',
+    () async {
+      final visible = Match(arenas.first, 0, 42)..hiding = false;
+      final baseline = Match(arenas.first, 0, 42)..hiding = false;
+      for (final m in [visible, baseline]) {
+        for (final p in m.players.skip(1)) {
+          p.caught = true;
+        }
+      }
+      final effectRenderer = ArenaRenderer(visible),
+          plainRenderer = ArenaRenderer(baseline);
+      addTearDown(effectRenderer.dispose);
+      addTearDown(plainRenderer.dispose);
+      visible.players[1]
+        ..caught = false
+        ..vanish = 3;
+      effectRenderer.advance(.05);
+      plainRenderer.advance(.05);
+      expect(
+        await pixels(effectRenderer),
+        orderedEquals(await pixels(plainRenderer)),
+      );
+      visible.players[1]
+        ..vanish = 0
+        ..hidingIn = visible.props.first
+        ..at = visible.props.first.at;
+      effectRenderer.advance(.05);
+      plainRenderer.advance(.05);
+      expect(
+        await pixels(effectRenderer),
+        orderedEquals(await pixels(plainRenderer)),
+      );
+    },
+  );
 }

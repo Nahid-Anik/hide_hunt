@@ -1,11 +1,12 @@
 import 'dart:math';
-import 'package:flame/extensions.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../hunt/data/arenas.dart';
 import '../hunt/domain/match.dart';
 import '../hunt/game/arena_renderer.dart';
 import '../hunt/presentation/play_screen.dart';
 import '../local/presentation/local_lobby.dart';
+import 'interactive_graphics.dart';
 
 const _ink = Color(0xff193d34);
 const _cream = Color(0xfffff0cb);
@@ -69,7 +70,9 @@ class Home extends StatelessWidget {
                   SizedBox(
                     height: wide ? 126 : 190,
                     width: 380,
-                    child: CustomPaint(painter: _MenuScene()),
+                    child: ReactiveIllustration(
+                      child: CustomPaint(painter: _MenuScene()),
+                    ),
                   ),
                 ],
               );
@@ -93,12 +96,24 @@ class Home extends StatelessWidget {
                     _MenuButton(
                       label: 'LOCAL PLAY',
                       icon: Icons.groups_rounded,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(
-                          builder: (_) => const LocalLobby(arenaIndex: 0),
-                        ),
-                      ),
+                      onTap: () {
+                        if (kIsWeb) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Local multiplayer is available in the Android app. Choose Play Solo to play in your browser.',
+                              ),
+                            ),
+                          );
+                          return;
+                        }
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => const LocalLobby(arenaIndex: 0),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 12),
                     _MenuButton(
@@ -158,39 +173,43 @@ class _MenuButton extends StatelessWidget {
     this.primary = false,
   });
   @override
-  Widget build(BuildContext context) => Container(
-    decoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(18),
-      boxShadow: [
-        BoxShadow(
-          color: primary ? const Color(0xffaa773b) : const Color(0xff0e2b25),
-          offset: const Offset(0, 5),
-        ),
-      ],
-    ),
-    child: SizedBox(
-      width: double.infinity,
-      height: 57,
-      child: FilledButton.icon(
-        onPressed: onTap,
-        style: FilledButton.styleFrom(
-          backgroundColor: primary ? _gold : const Color(0xff31594b),
-          foregroundColor: primary ? const Color(0xff543d25) : _cream,
-          side: BorderSide(
-            color: primary ? const Color(0xffffe7aa) : const Color(0xff6c8b64),
-            width: 1.5,
+  Widget build(BuildContext context) => ReactiveSurface(
+    child: Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: primary ? const Color(0xffaa773b) : const Color(0xff0e2b25),
+            offset: const Offset(0, 5),
           ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+        ],
+      ),
+      child: SizedBox(
+        width: double.infinity,
+        height: 57,
+        child: FilledButton.icon(
+          onPressed: onTap,
+          style: FilledButton.styleFrom(
+            backgroundColor: primary ? _gold : const Color(0xff31594b),
+            foregroundColor: primary ? const Color(0xff543d25) : _cream,
+            side: BorderSide(
+              color: primary
+                  ? const Color(0xffffe7aa)
+                  : const Color(0xff6c8b64),
+              width: 1.5,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
           ),
-        ),
-        icon: Icon(icon, size: 25),
-        label: Text(
-          label,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 1.4,
+          icon: Icon(icon, size: 25),
+          label: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 1.4,
+            ),
           ),
         ),
       ),
@@ -229,9 +248,18 @@ class _SoloSetupState extends State<SoloSetup> {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(22),
-                  child: AspectRatio(
-                    aspectRatio: 4 / 3,
-                    child: CustomPaint(painter: _ArenaPreview(preview)),
+                  child: AnimatedSwitcher(
+                    duration: Duration(
+                      milliseconds: MediaQuery.disableAnimationsOf(context)
+                          ? 0
+                          : 260,
+                    ),
+                    child: InteractiveArenaPreview(
+                      key: ValueKey(selected),
+                      match: preview,
+                      onPrevious: () => changeMap(-1),
+                      onNext: () => changeMap(1),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -435,17 +463,6 @@ class _GuideCard extends StatelessWidget {
       ],
     ),
   );
-}
-
-class _ArenaPreview extends CustomPainter {
-  final Match match;
-  _ArenaPreview(this.match);
-  @override
-  void paint(Canvas canvas, Size size) => ArenaRenderer(
-    match,
-  ).render(canvas, Vector2(size.width, size.height), preview: true);
-  @override
-  bool shouldRepaint(_ArenaPreview oldDelegate) => oldDelegate.match != match;
 }
 
 class _MenuScene extends CustomPainter {

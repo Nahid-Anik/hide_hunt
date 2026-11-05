@@ -50,6 +50,24 @@ class Match {
           players[i].hidingIn == null &&
           players[i].vanish <= 0 &&
           clear(players[human].at, players[i].at));
+  // Shared by the Hide action and its visual target, so the highlight is exact.
+  Prop? hidingPlace(int i) {
+    final player = players[i];
+    if (player.hunter || !available(i) || player.hidingIn != null) return null;
+    Prop? closest;
+    var distance = 85.0;
+    for (final prop in props) {
+      final next = (prop.at - player.at).distance;
+      if (next < distance &&
+          clear(player.at, prop.at, 12) &&
+          !players.any((other) => !other.caught && other.hidingIn == prop)) {
+        closest = prop;
+        distance = next;
+      }
+    }
+    return closest;
+  }
+
   bool primary(int i) {
     if (!available(i)) return false;
     final p = players[i];
@@ -58,24 +76,10 @@ class Match {
         p.hidingIn = null;
         return true;
       }
-      final near =
-          props
-              .where(
-                (q) =>
-                    (q.at - p.at).distance < 85 &&
-                    clear(p.at, q.at, 12) &&
-                    !players.any(
-                      (other) => !other.caught && other.hidingIn == q,
-                    ),
-              )
-              .toList()
-            ..sort(
-              (a, b) =>
-                  (a.at - p.at).distance.compareTo((b.at - p.at).distance),
-            );
-      if (near.isEmpty) return false;
-      p.hidingIn = near.first;
-      p.at = near.first.at;
+      final near = hidingPlace(i);
+      if (near == null) return false;
+      p.hidingIn = near;
+      p.at = near.at;
       return true;
     }
     if (p.cooldown > 0) return false;

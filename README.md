@@ -1,4 +1,4 @@
-﻿# Hide & Hunt
+# Hide & Hunt
 
 Flutter + Flame hide-and-seek for Android. Five maps, 48 randomized hiding objects,
 one hunter, three rebels, solo bots, and local multiplayer over Wi-Fi / hotspot.
@@ -28,14 +28,14 @@ addresses may be listed: use the one associated with Wi-Fi or hotspot.
 This version uses manual address entry, not automatic discovery. Bluetooth,
 Wi-Fi Direct, automatic hotspot creation, online matchmaking, and audio are not
 implemented. The local multiplayer implementation currently targets Android;
-other platform runners and the web build are not validated.
+solo play also runs in Chrome. Local multiplayer is unavailable in the browser.
 
 ## Rules and controls
 
 The home screen contains three main buttons: **Play Solo**, **Local Play**, and
 **How to Play**. Solo map and role selection live in the solo setup screen;
 instructions are available from How to Play. The renderer includes shaded props,
-stone paths and walls, distinct character outfits, and animated capture rings.
+stone paths and walls, distinct character outfits, and animated capture rings. Menu buttons react to hover and presses, and the home illustration reacts to pointer movement. Swipe map previews to change maps or tap a prop to highlight a hiding place. During play, rebels see their eligible hiding target; hiding, vanishing, and hunter Sense have animated feedback. Menu motion respects reduced-motion settings.
 
 Rebels have 20 seconds to hide, followed by a three-minute hunt. **Hide** enters
 an existing nearby, unoccupied object. Move or tap **Leave** to exit. **Vanish**
@@ -48,6 +48,16 @@ captures win immediately; two captures win when time expires.
 
 Move with the joystick or WASD / arrows. E: Capture / Hide. Q: Sense / Vanish.
 
+## Browser preview
+
+Run the web server, then open http://127.0.0.1:5173 in Chrome:
+
+```powershell
+flutter run -d web-server --web-hostname 127.0.0.1 --web-port 5173
+```
+
+Choose **Play Solo**. Keyboard and on-screen controls are supported.
+Local multiplayer requires the Android app.
 ## Build and validate
 
 The Android runner is included. Do not regenerate it: it includes local-network
